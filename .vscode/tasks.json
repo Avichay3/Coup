@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build and Run C++",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-g",
+                "main.cpp",
+                "-o",
+                "main"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"],
+            "detail": "Compiles and runs main.cpp"
+        },
+        {
+            "label": "Run Executable",
+            "type": "shell",
+            "command": "./main",
+            "dependsOn": "Build and Run C++"
+        }
+    ]
+}
