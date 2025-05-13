@@ -30,34 +30,44 @@ bool Player::isAlive() const {
 void Player::gather() {
     if (!alive) throw std::logic_error("Dead player cannot gather.");
     if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
-    
+    if (game->isSanctionedPlayer(this)) throw std::logic_error("You are sanctioned and cannot gather.");
+
     coins += 1;
     std::cout << name << " gathered 1 coin." << std::endl;
 
+    if (extraAction) {
+        extraAction = false;
+    }
     game->nextTurn();
 }
 
 void Player::tax() {
     if (!alive) throw std::logic_error("Dead player cannot tax.");
     if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
-    
+    if (game->isSanctionedPlayer(this)) throw std::logic_error("You are sanctioned and cannot tax.");
+
     int amount = 2;
     if (role == Role::Governor) amount = 3;
 
     coins += amount;
     std::cout << name << " taxed and got " << amount << " coins." << std::endl;
 
+    if (extraAction) {
+        extraAction = false;
+    }
     game->nextTurn();
 }
 
 void Player::bribe() {
     if (!alive) throw std::logic_error("Dead player cannot bribe.");
+    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
     if (coins < 4) throw std::logic_error("Not enough coins to bribe.");
 
     coins -= 4;
-    std::cout << name << " paid 4 coins for a bribe and gets an extra move." << std::endl;
+    extraAction = true;
 
-    // The player should now get another action (handled in Game logic or main loop)
+    std::cout << name << " paid 4 coins to bribe and earned an extra action.\n";
+    // No nextTurn() here – player acts again
 }
 
 void Player::arrest(Player& target) {
@@ -73,6 +83,9 @@ void Player::arrest(Player& target) {
     game->markArrest(this, &target);
     std::cout << name << " arrested " << target.getName() << " and took 1 coin." << std::endl;
 
+    if (extraAction) {
+        extraAction = false;
+    }
     game->nextTurn();
 }
 
@@ -86,6 +99,9 @@ void Player::sanction(Player& target) {
 
     std::cout << name << " sanctioned " << target.getName() << "." << std::endl;
 
+    if (extraAction) {
+        extraAction = false;
+    }
     game->nextTurn();
 }
 
@@ -99,6 +115,9 @@ void Player::coup(Player& target) {
 
     std::cout << name << " performed a coup on " << target.getName() << "." << std::endl;
 
+    if (extraAction) {
+        extraAction = false;
+    }
     game->nextTurn();
 }
 

@@ -13,6 +13,8 @@ private:
     int coins;
     bool alive;
     Game* game;
+    bool extraAction = false; 
+
 
 public:
     Player(const std::string& name, Role role, Game* game);
