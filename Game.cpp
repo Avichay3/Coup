@@ -2,6 +2,7 @@
 #include "Player.hpp"
 #include <stdexcept>
 #include <iostream>
+#include <unordered_set>
 
 Game::Game() {}
 
@@ -14,7 +15,6 @@ void Game::addPlayer(Player* player) {
 void Game::eliminate(Player* player) {
     player->eliminate();
 
-    // Check if only one player remains
     int aliveCount = 0;
     for (Player* p : players) {
         if (p->isAlive()) aliveCount++;
@@ -65,13 +65,16 @@ void Game::nextTurn() {
         size_t next = (turnIndex + i) % total;
         if (players[next]->isAlive()) {
             turnIndex = next;
+
+            // Clear sanctions (valid until start of next turn)
+            isSanctioned[players[next]->getName()] = false;
+
+            // Clear arrest blocks (Spy effects)
+            std::cout << "[DEBUG] Clearing arrest block list\n";
+            arrestBlockedPlayers.clear();
+
             break;
         }
-    }
-
-    // Clear sanctions after target's next turn
-    for (auto& pair : isSanctioned) {
-        pair.second = false;
     }
 }
 
@@ -82,4 +85,14 @@ bool Game::isPlayerTurn(Player* player) const {
 bool Game::isSanctionedPlayer(Player* player) const {
     auto it = isSanctioned.find(player->getName());
     return it != isSanctioned.end() && it->second;
+}
+
+void Game::blockArrestFor(Player* p) {
+    std::cout << "[DEBUG] Blocking arrest for: " << p->getName() << std::endl;
+    arrestBlockedPlayers.insert(p->getName());
+}
+
+bool Game::isArrestBlocked(Player* p) const {
+    std::cout << "[DEBUG] Checking if " << p->getName() << " is blocked from arrest.\n";
+    return arrestBlockedPlayers.count(p->getName()) > 0;
 }

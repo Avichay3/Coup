@@ -5,6 +5,8 @@
 #include <string>
 #include <unordered_map>
 #include "Role.hpp"
+#include <unordered_set>
+
 
 class Player;
 
@@ -15,6 +17,7 @@ private:
     std::unordered_map<std::string, std::string> lastArrested;
     size_t turnIndex = 0;
     bool gameOver = false;
+    std::unordered_set<std::string> arrestBlockedPlayers;
 
 public:
     Game();
@@ -31,6 +34,12 @@ public:
     void nextTurn();
     bool isPlayerTurn(Player* player) const;
     bool isSanctionedPlayer(Player* player) const;
+    void blockArrestFor(Player* p);
+    bool isArrestBlocked(Player* p) const;
+
+
+    
+
 };
 
 #endif

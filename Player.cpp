@@ -74,6 +74,9 @@ void Player::arrest(Player& target) {
     if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive.");
     if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
     if (game->wasArrestedByMeLastTurn(this, &target)) throw std::logic_error("Cannot arrest same player twice in a row.");
+    if (game->isArrestBlocked(this)) {
+        throw std::logic_error("You have been blocked from using arrest this turn.");
+    }
 
     if (target.getCoins() > 0) {
         target.removeCoins(1);
@@ -88,6 +91,8 @@ void Player::arrest(Player& target) {
     }
     game->nextTurn();
 }
+
+
 
 void Player::sanction(Player& target) {
     if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive.");
@@ -136,3 +141,16 @@ void Player::eliminate() {
     alive = false;
     std::cout << name << " has been eliminated from the game." << std::endl;
 }
+
+void Player::spyOn(Player& target) {
+    if (!alive) throw std::logic_error("Dead player cannot spy.");
+    if (role != Role::Spy) throw std::logic_error("Only a Spy can use spyOn.");
+    if (!target.isAlive()) throw std::logic_error("Cannot spy on a dead player.");
+
+    std::cout << name << " spies on " << target.getName()
+              << ": they have " << target.getCoins() << " coins.\n";
+
+    game->blockArrestFor(&target);  // ה־Spy חוסם את ה־target
+}
+
+

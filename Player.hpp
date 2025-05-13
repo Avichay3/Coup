@@ -33,6 +33,9 @@ public:
     void removeCoins(int amount);
     void addCoins(int amount);
     void eliminate();  // called when the player is removed from the game
+
+    void spyOn(Player& target);  // Spy action
+
 };
 
 #endif
