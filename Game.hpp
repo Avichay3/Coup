@@ -17,7 +17,9 @@ private:
     std::unordered_map<std::string, std::string> lastArrested;
     size_t turnIndex = 0;
     bool gameOver = false;
-    std::unordered_set<std::string> arrestBlockedPlayers;
+    std::unordered_map<std::string, size_t> arrestBlockedTurns;
+
+
 
 public:
     Game();

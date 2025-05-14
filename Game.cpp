@@ -69,14 +69,21 @@ void Game::nextTurn() {
             // Clear sanctions (valid until start of next turn)
             isSanctioned[players[next]->getName()] = false;
 
-            // Clear arrest blocks (Spy effects)
-            std::cout << "[DEBUG] Clearing arrest block list\n";
-            arrestBlockedPlayers.clear();
+            // Clear arrest blocks only for players whose turn has passed
+            for (auto it = arrestBlockedTurns.begin(); it != arrestBlockedTurns.end(); ) {
+                if (it->second != turnIndex) {
+                    std::cout << "[DEBUG] Removing arrest block from: " << it->first << std::endl;
+                    it = arrestBlockedTurns.erase(it);
+                } else {
+                    ++it;
+                }
+            }
 
             break;
         }
     }
 }
+
 
 bool Game::isPlayerTurn(Player* player) const {
     return players[turnIndex] == player;
@@ -88,11 +95,18 @@ bool Game::isSanctionedPlayer(Player* player) const {
 }
 
 void Game::blockArrestFor(Player* p) {
-    std::cout << "[DEBUG] Blocking arrest for: " << p->getName() << std::endl;
-    arrestBlockedPlayers.insert(p->getName());
+    std::cout << "[DEBUG] Blocking arrest for: " << p->getName()
+              << " at turn index: " << turnIndex << std::endl;
+    arrestBlockedTurns[p->getName()] = turnIndex;
 }
 
 bool Game::isArrestBlocked(Player* p) const {
-    std::cout << "[DEBUG] Checking if " << p->getName() << " is blocked from arrest.\n";
-    return arrestBlockedPlayers.count(p->getName()) > 0;
+    auto it = arrestBlockedTurns.find(p->getName());
+    if (it == arrestBlockedTurns.end()) return false;
+
+    bool isBlocked = (it->second == turnIndex);
+    std::cout << "[DEBUG] Checking if " << p->getName()
+              << " is blocked from arrest (blocked? " << isBlocked << ")\n";
+    return isBlocked;
 }
+

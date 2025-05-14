@@ -74,9 +74,7 @@ void Player::arrest(Player& target) {
     if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive.");
     if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
     if (game->wasArrestedByMeLastTurn(this, &target)) throw std::logic_error("Cannot arrest same player twice in a row.");
-    if (game->isArrestBlocked(this)) {
-        throw std::logic_error("You have been blocked from using arrest this turn.");
-    }
+    if (game->isArrestBlocked(this)) throw std::logic_error("You have been blocked from using arrest this turn.");
 
     if (target.getCoins() > 0) {
         target.removeCoins(1);
@@ -91,6 +89,7 @@ void Player::arrest(Player& target) {
     }
     game->nextTurn();
 }
+
 
 
 
@@ -150,7 +149,8 @@ void Player::spyOn(Player& target) {
     std::cout << name << " spies on " << target.getName()
               << ": they have " << target.getCoins() << " coins.\n";
 
-    game->blockArrestFor(&target);  // ה־Spy חוסם את ה־target
+    game->blockArrestFor(&target);
 }
+
 
 
