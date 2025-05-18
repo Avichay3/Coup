@@ -1,125 +1,112 @@
+// Game.cpp – כולל Sanction + Spy arrest block
+
 #include "Game.hpp"
 #include "Player.hpp"
 #include <stdexcept>
+#include <algorithm>
 #include <iostream>
-#include <unordered_set>
 
-Game::Game() {}
-
-void Game::addPlayer(Player* player) {
-    if (gameOver) throw std::logic_error("Cannot add players after game started.");
-    players.push_back(player);
-    isSanctioned[player->getName()] = false;
+void Game::addPlayer(Player* p) {
+    if (!p) throw std::invalid_argument("Null player");
+    players.push_back(p);
+    if (currentTurnIndex == -1) currentTurnIndex = 0;
 }
 
-void Game::eliminate(Player* player) {
-    player->eliminate();
-
-    int aliveCount = 0;
-    for (Player* p : players) {
-        if (p->isAlive()) aliveCount++;
+Player* Game::currentPlayer() const {
+    if (players.empty()) throw std::logic_error("No players in game.");
+    int count = 0;
+    int idx = currentTurnIndex;
+    while (!players[idx]->isAlive()) {
+        idx = (idx + 1) % players.size();
+        if (++count > players.size()) throw std::logic_error("No active players.");
     }
-    if (aliveCount == 1) gameOver = true;
-}
-
-void Game::applySanction(Player* target) {
-    isSanctioned[target->getName()] = true;
-}
-
-void Game::markArrest(Player* source, Player* target) {
-    lastArrested[source->getName()] = target->getName();
-}
-
-bool Game::wasArrestedByMeLastTurn(Player* source, Player* target) const {
-    auto it = lastArrested.find(source->getName());
-    return it != lastArrested.end() && it->second == target->getName();
+    return players[idx];
 }
 
 std::string Game::turn() const {
-    if (players.empty()) throw std::logic_error("No players in game.");
-    if (!players[turnIndex]->isAlive()) throw std::logic_error("Dead player's turn.");
-    return players[turnIndex]->getName();
+    return currentPlayer()->getName();
 }
 
 std::vector<std::string> Game::playersNames() const {
-    std::vector<std::string> active;
-    for (Player* p : players) {
-        if (p->isAlive()) active.push_back(p->getName());
+    std::vector<std::string> names;
+    for (auto* p : players) {
+        if (p->isAlive()) names.push_back(p->getName());
     }
-    return active;
-}
-
-std::string Game::winner() const {
-    if (!gameOver) throw std::logic_error("Game is not over yet.");
-    for (Player* p : players) {
-        if (p->isAlive()) return p->getName();
-    }
-    throw std::logic_error("No winner found.");
+    return names;
 }
 
 void Game::nextTurn() {
     if (players.empty()) return;
+    do {
+        currentTurnIndex = (currentTurnIndex + 1) % players.size();
+    } while (!players[currentTurnIndex]->isAlive());
 
-    size_t total = players.size();
-    for (size_t i = 1; i <= total; ++i) {
-        size_t next = (turnIndex + i) % total;
-        if (players[next]->isAlive()) {
-            turnIndex = next;
+    // ניקוי סנקציות לשחקן הבא
+    for (auto it = sanctions.begin(); it != sanctions.end(); ) {
+        if (it->first == players[currentTurnIndex]) {
+            it = sanctions.erase(it);
+        } else {
+            ++it;
+        }
+    }
 
-            // Clear sanctions (valid until start of next turn)
-            isSanctioned[players[next]->getName()] = false;
-
-            // Clear arrest blocks only for players whose turn has passed
-            for (auto it = arrestBlockedTurns.begin(); it != arrestBlockedTurns.end(); ) {
-                if (it->second != turnIndex) {
-                    std::cout << "[DEBUG] Removing arrest block from: " << it->first << std::endl;
-                    it = arrestBlockedTurns.erase(it);
-                } else {
-                    ++it;
-                }
-            }
-
-            break;
+    // ניקוי חסימות arrest לשחקן הבא
+    for (auto it = arrestBlocks.begin(); it != arrestBlocks.end(); ) {
+        if (it->first == players[currentTurnIndex]) {
+            std::cout << "[DEBUG] Removing arrest block from: " << it->first->getName() << std::endl;
+            it = arrestBlocks.erase(it);
+        } else {
+            ++it;
         }
     }
 }
 
-
-bool Game::isPlayerTurn(Player* player) const {
-    return players[turnIndex] == player;
+void Game::eliminate(Player* p) {
+    if (!p || !p->isAlive()) throw std::logic_error("Cannot eliminate.");
+    p->eliminate();
 }
 
-bool Game::isSanctionedPlayer(Player* player) const {
-    auto it = isSanctioned.find(player->getName());
-    return it != isSanctioned.end() && it->second;
+std::string Game::winner() const {
+    std::string winnerName = "";
+    for (Player* p : players) {
+        if (p->isAlive()) {
+            if (!winnerName.empty()) throw std::logic_error("Game is not over yet.");
+            winnerName = p->getName();
+        }
+    }
+    if (winnerName.empty()) throw std::logic_error("No winner.");
+    return winnerName;
 }
 
-void Game::blockArrestFor(Player* p) {
-    std::cout << "[DEBUG] Blocking arrest for: " << p->getName()
-              << " at turn index: " << turnIndex << std::endl;
-    arrestBlockedTurns[p->getName()] = turnIndex;
+bool Game::isPlayerTurn(Player* p) const {
+    return currentPlayer() == p;
 }
 
-bool Game::isArrestBlocked(Player* p) const {
-    auto it = arrestBlockedTurns.find(p->getName());
-    if (it == arrestBlockedTurns.end()) return false;
-
-    bool isBlocked = (it->second == turnIndex);
-    std::cout << "[DEBUG] Checking if " << p->getName()
-              << " is blocked from arrest (blocked? " << isBlocked << ")\n";
-    return isBlocked;
+void Game::applySanction(Player* target) {
+    if (!target || !target->isAlive()) throw std::logic_error("Invalid sanction target");
+    sanctions[target] = currentTurnIndex;
 }
 
-Player* Game::currentPlayer() {
-    if (players.empty()) return nullptr;
-    return players[turnIndex];
+bool Game::isSanctioned(Player* p) const {
+    return sanctions.find(p) != sanctions.end();
 }
 
 Player* Game::getPlayer(const std::string& name) {
     for (Player* p : players) {
-        if (p->getName() == name) {
-            return p;
-        }
+        if (p->getName() == name) return p;
     }
-    throw std::runtime_error("Player not found: " + name);
+    throw std::logic_error("Player not found: " + name);
+}
+
+void Game::blockArrest(Player* target) {
+    arrestBlocks[target] = currentTurnIndex;
+    std::cout << "[DEBUG] Blocking arrest for: " << target->getName() << " at turn index: " << currentTurnIndex << std::endl;
+}
+
+bool Game::isArrestBlocked(Player* target) const {
+    auto it = arrestBlocks.find(target);
+    if (it == arrestBlocks.end()) return false;
+    bool blocked = it->second == currentTurnIndex;
+    std::cout << "[DEBUG] Checking if " << target->getName() << " is blocked from arrest (blocked? " << blocked << ")" << std::endl;
+    return blocked;
 }

@@ -1,10 +1,8 @@
-#ifndef PLAYER_HPP
-#define PLAYER_HPP
+#pragma once
 
 #include <string>
 #include "Role.hpp"
-
-class Game; // forward declaration
+class Game;
 
 class Player {
 private:
@@ -13,11 +11,11 @@ private:
     int coins;
     bool alive;
     Game* game;
-    bool extraAction = false; 
-
+    bool extraAction;
 
 public:
     Player(const std::string& name, Role role, Game* game);
+
     const std::string& getName() const;
     Role getRole() const;
     int getCoins() const;
@@ -26,16 +24,13 @@ public:
     void gather();
     void tax();
     void bribe();
-    void arrest(Player& target);
-    void sanction(Player& target);
     void coup(Player& target);
+    void sanction(Player& target);
+    void invest(); // 🟢 Baron only
+    void spyOn(Player& target); // 🕵️ Spy only
 
-    void removeCoins(int amount);
     void addCoins(int amount);
-    void eliminate();  // called when the player is removed from the game
-
-    void spyOn(Player& target);  // Spy action
-
+    void removeCoins(int amount);
+    void eliminate();
+    void endTurn();
 };
-
-#endif
