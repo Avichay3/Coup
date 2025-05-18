@@ -21,8 +21,7 @@ int main() {
         return 1;
     }
 
-    // Turn info
-    sf::Text turnText("Turn: ", font, 26);
+    sf::Text turnText("", font, 26);
     turnText.setPosition(50, 20);
     turnText.setFillColor(sf::Color::White);
 
@@ -30,7 +29,6 @@ int main() {
     resultText.setPosition(50, 70);
     resultText.setFillColor(sf::Color::Green);
 
-    // Action Buttons
     sf::RectangleShape gatherBtn(sf::Vector2f(200, 50));
     gatherBtn.setPosition(50, 120);
     gatherBtn.setFillColor(sf::Color(100, 100, 250));
@@ -59,24 +57,33 @@ int main() {
     coupText.setPosition(90, 340);
     coupText.setFillColor(sf::Color::White);
 
-    // Coup Target Selection
     std::vector<sf::RectangleShape> targetButtons;
     std::vector<sf::Text> targetTexts;
     bool choosingTarget = false;
+    bool gameOver = false;
+    bool mustCoup = false;
+    std::string winnerName = "";
 
-    // Main loop
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
 
+            if (gameOver) continue;
+
             if (event.type == sf::Event::MouseButtonPressed) {
                 sf::Vector2f mouse(sf::Mouse::getPosition(window));
                 Player* current = game.currentPlayer();
+                mustCoup = current->getCoins() >= 10;
 
                 if (!choosingTarget) {
-                    if (gatherBtn.getGlobalBounds().contains(mouse)) {
+                    if (mustCoup) {
+                        resultText.setString("You have 10+ coins. You must perform a coup.");
+                        resultText.setFillColor(sf::Color::Red);
+                    }
+
+                    if (!mustCoup && gatherBtn.getGlobalBounds().contains(mouse)) {
                         try {
                             current->gather();
                             resultText.setString(current->getName() + " gathered 1 coin.");
@@ -87,7 +94,7 @@ int main() {
                         }
                     }
 
-                    if (taxBtn.getGlobalBounds().contains(mouse)) {
+                    if (!mustCoup && taxBtn.getGlobalBounds().contains(mouse)) {
                         try {
                             current->tax();
                             int amount = (current->getRole() == Role::Governor) ? 3 : 2;
@@ -99,7 +106,7 @@ int main() {
                         }
                     }
 
-                    if (bribeBtn.getGlobalBounds().contains(mouse)) {
+                    if (!mustCoup && bribeBtn.getGlobalBounds().contains(mouse)) {
                         try {
                             current->bribe();
                             resultText.setString(current->getName() + " bribed and earned extra action.");
@@ -112,12 +119,12 @@ int main() {
 
                     if (coupBtn.getGlobalBounds().contains(mouse)) {
                         if (current->getCoins() < 7) {
-                            resultText.setString("You need at least 7 coins to perform a coup.");
+                            resultText.setString("You need at least 7 coins to coup.");
                             resultText.setFillColor(sf::Color::Red);
                         } else {
+                            choosingTarget = true;
                             targetButtons.clear();
                             targetTexts.clear();
-                            choosingTarget = true;
 
                             int y = 420;
                             for (Player* p : players) {
@@ -141,7 +148,6 @@ int main() {
                         }
                     }
                 } else {
-                    // Handle coup target
                     for (size_t i = 0; i < targetButtons.size(); ++i) {
                         if (targetButtons[i].getGlobalBounds().contains(mouse)) {
                             Player* target = game.getPlayer(targetTexts[i].getString());
@@ -161,41 +167,61 @@ int main() {
             }
         }
 
-        Player* current = game.currentPlayer();
-        turnText.setString("Current turn: " + current->getName() + " (" + std::to_string(current->getCoins()) + " coins)");
-
         window.clear(sf::Color(30, 30, 30));
-        window.draw(turnText);
-        window.draw(resultText);
 
-        window.draw(gatherBtn); window.draw(gatherText);
-        window.draw(taxBtn);    window.draw(taxText);
-        window.draw(bribeBtn);  window.draw(bribeText);
-        window.draw(coupBtn);   window.draw(coupText);
-
-        // Draw target selection if active
-        if (choosingTarget) {
-            for (size_t i = 0; i < targetButtons.size(); ++i) {
-                window.draw(targetButtons[i]);
-                window.draw(targetTexts[i]);
+        Player* current = nullptr;
+        if (!gameOver) {
+            try {
+                winnerName = game.winner();
+                gameOver = true;
+            } catch (...) {
+                current = game.currentPlayer();
+                mustCoup = current->getCoins() >= 10;
             }
         }
 
-        // === Player list display ===
-        sf::Text playerListTitle("Players:", font, 20);
-        playerListTitle.setPosition(700, 30);
-        playerListTitle.setFillColor(sf::Color::White);
-        window.draw(playerListTitle);
+        if (gameOver) {
+            sf::Text winText("🏆 Winner: " + winnerName + " 🏆", font, 36);
+            winText.setFillColor(sf::Color::Cyan);
+            winText.setPosition(250, 250);
+            window.draw(winText);
+        } else {
+            turnText.setString("Current turn: " + current->getName() + " (" + std::to_string(current->getCoins()) + " coins)");
+            window.draw(turnText);
+            window.draw(resultText);
 
-        int py = 60;
-        for (Player* p : players) {
-            if (!p->isAlive()) continue;
-            std::string info = p->getName() + " - " + std::to_string(p->getCoins()) + " coins";
-            sf::Text pText(info, font, 18);
-            pText.setPosition(700, py);
-            pText.setFillColor(sf::Color::White);
-            window.draw(pText);
-            py += 30;
+            if (!mustCoup && !choosingTarget) {
+                window.draw(gatherBtn);  window.draw(gatherText);
+                window.draw(taxBtn);     window.draw(taxText);
+                window.draw(bribeBtn);   window.draw(bribeText);
+            }
+
+            if (!choosingTarget) {
+                window.draw(coupBtn);    window.draw(coupText);
+            }
+
+            if (choosingTarget) {
+                for (size_t i = 0; i < targetButtons.size(); ++i) {
+                    window.draw(targetButtons[i]);
+                    window.draw(targetTexts[i]);
+                }
+            }
+
+            sf::Text playerListTitle("Players:", font, 20);
+            playerListTitle.setPosition(700, 30);
+            playerListTitle.setFillColor(sf::Color::White);
+            window.draw(playerListTitle);
+
+            int py = 60;
+            for (Player* p : players) {
+                if (!p->isAlive()) continue;
+                std::string info = p->getName() + " - " + std::to_string(p->getCoins()) + " coins";
+                sf::Text pText(info, font, 18);
+                pText.setPosition(700, py);
+                pText.setFillColor(sf::Color::White);
+                window.draw(pText);
+                py += 30;
+            }
         }
 
         window.display();
