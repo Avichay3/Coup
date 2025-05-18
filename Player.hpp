@@ -28,9 +28,15 @@ public:
     void sanction(Player& target);
     void invest(); // 🟢 Baron only
     void spyOn(Player& target); // 🕵️ Spy only
+    void preventCoup(Player& target); // 🎖️ General only
 
     void addCoins(int amount);
     void removeCoins(int amount);
     void eliminate();
     void endTurn();
+
+    void judgeBribe(Player& target);  // ביטול שוחד
+    void clearExtraAction();  // מאפשר ביטול bribe
+
+
 };

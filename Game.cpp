@@ -1,4 +1,4 @@
-// Game.cpp – כולל Sanction + Spy arrest block
+// Game.cpp – כולל חסימות arrest + coup (Spy + General)
 
 #include "Game.hpp"
 #include "Player.hpp"
@@ -41,7 +41,7 @@ void Game::nextTurn() {
         currentTurnIndex = (currentTurnIndex + 1) % players.size();
     } while (!players[currentTurnIndex]->isAlive());
 
-    // ניקוי סנקציות לשחקן הבא
+    // ניקוי סנקציות
     for (auto it = sanctions.begin(); it != sanctions.end(); ) {
         if (it->first == players[currentTurnIndex]) {
             it = sanctions.erase(it);
@@ -49,12 +49,20 @@ void Game::nextTurn() {
             ++it;
         }
     }
-
-    // ניקוי חסימות arrest לשחקן הבא
+    // ניקוי חסימות arrest
     for (auto it = arrestBlocks.begin(); it != arrestBlocks.end(); ) {
         if (it->first == players[currentTurnIndex]) {
             std::cout << "[DEBUG] Removing arrest block from: " << it->first->getName() << std::endl;
             it = arrestBlocks.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    // ניקוי חסימות coup
+    for (auto it = coupBlocks.begin(); it != coupBlocks.end(); ) {
+        if (it->first == players[currentTurnIndex]) {
+            std::cout << "[DEBUG] Removing coup block from: " << it->first->getName() << std::endl;
+            it = coupBlocks.erase(it);
         } else {
             ++it;
         }
@@ -109,4 +117,36 @@ bool Game::isArrestBlocked(Player* target) const {
     bool blocked = it->second == currentTurnIndex;
     std::cout << "[DEBUG] Checking if " << target->getName() << " is blocked from arrest (blocked? " << blocked << ")" << std::endl;
     return blocked;
+}
+
+void Game::blockCoup(Player* target) {
+    coupBlocks[target] = currentTurnIndex;
+    std::cout << "[DEBUG] Blocking coup for: " << target->getName() << " at turn index: " << currentTurnIndex << std::endl;
+}
+
+bool Game::isCoupBlocked(Player* target) const {
+    auto it = coupBlocks.find(target);
+    if (it == coupBlocks.end()) return false;
+    bool blocked = it->second == currentTurnIndex;
+    std::cout << "[DEBUG] Checking if " << target->getName() << " is blocked from coup (blocked? " << blocked << ")" << std::endl;
+    return blocked;
+}
+
+void Game::markBribe(Player* p) {
+    bribeLog[p] = currentTurnIndex;
+}
+
+bool Game::wasBribeUsedBy(Player* p) const {
+    auto it = bribeLog.find(p);
+    if (it == bribeLog.end()) return false;
+    return (it->second + 1 >= currentTurnIndex); // ניתן לבטל עד תחילת תור הבא
+}
+
+void Game::cancelBribe(Player* p) {
+    bribeLog.erase(p);
+    p->clearExtraAction();  // לא יקבל תור נוסף
+}
+
+void Game::addCoinsToBank(int amount) {
+    bank += amount;
 }

@@ -11,7 +11,10 @@ private:
     std::vector<Player*> players;
     int currentTurnIndex = -1;
     std::unordered_map<Player*, int> sanctions;
-    std::unordered_map<Player*, int> arrestBlocks; // 💥 Spy blocks arrest temporarily
+    std::unordered_map<Player*, int> arrestBlocks; // 🕵️ Spy blocks arrest
+    std::unordered_map<Player*, int> coupBlocks;   // 🎖️ General blocks coup
+    int bank = 0; // קופה של המשחק
+
 
 public:
     void addPlayer(Player* p);
@@ -28,6 +31,16 @@ public:
 
     Player* getPlayer(const std::string& name);
 
-    void blockArrest(Player* target);       // 🕵️ Spy sets arrest block
-    bool isArrestBlocked(Player* target) const; // Called before arrest
+    void blockArrest(Player* target);       // 🕵️ Spy
+    bool isArrestBlocked(Player* target) const;
+
+    void blockCoup(Player* target);         // 🎖️ General
+    bool isCoupBlocked(Player* target) const;
+
+    std::unordered_map<Player*, int> bribeLog;  // לשמירת שוחד בוצע
+    void markBribe(Player* p);      // לוג שוחד
+    bool wasBribeUsedBy(Player* p) const;
+    void cancelBribe(Player* p);    // מבטל תור נוסף
+
+    void addCoinsToBank(int amount);
 };
