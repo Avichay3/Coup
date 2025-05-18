@@ -110,3 +110,16 @@ bool Game::isArrestBlocked(Player* p) const {
     return isBlocked;
 }
 
+Player* Game::currentPlayer() {
+    if (players.empty()) return nullptr;
+    return players[turnIndex];
+}
+
+Player* Game::getPlayer(const std::string& name) {
+    for (Player* p : players) {
+        if (p->getName() == name) {
+            return p;
+        }
+    }
+    throw std::runtime_error("Player not found: " + name);
+}

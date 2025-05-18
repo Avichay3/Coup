@@ -39,6 +39,9 @@ public:
     void blockArrestFor(Player* p);
     bool isArrestBlocked(Player* p) const;
 
+    Player* currentPlayer();                      // מחזיר את השחקן שתורו כעת
+    Player* getPlayer(const std::string& name);   // מחזיר שחקן לפי שם
+
     // fsf
 
     
