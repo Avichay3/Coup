@@ -1,4 +1,4 @@
-// main_gui.cpp - כולל Spy + Sanction + Baron
+// main_gui.cpp - כולל Spy + Sanction + Baron + Judge (Cancel Bribe)
 
 #include <SFML/Graphics.hpp>
 #include <iostream>
@@ -12,7 +12,7 @@ int main() {
     std::vector<Player*> players;
     players.push_back(new Player("Avichay", Role::Governor, &game));
     players.push_back(new Player("Hadar", Role::Spy, &game));
-    players.push_back(new Player("Dani", Role::Baron, &game));
+    players.push_back(new Player("Dani", Role::Judge, &game));
 
     sf::RenderWindow window(sf::VideoMode(1100, 650), "Coup Game - GUI");
     sf::Font font;
@@ -21,7 +21,6 @@ int main() {
     sf::Text turnText("", font, 26); turnText.setPosition(50, 20); turnText.setFillColor(sf::Color::White);
     sf::Text resultText("", font, 22); resultText.setPosition(50, 70); resultText.setFillColor(sf::Color::Green);
 
-    // Action buttons
     sf::RectangleShape gatherBtn(sf::Vector2f(200, 50)); gatherBtn.setPosition(50, 120); gatherBtn.setFillColor(sf::Color(100, 100, 250));
     sf::Text gatherText("Gather", font, 24); gatherText.setPosition(90, 130); gatherText.setFillColor(sf::Color::White);
 
@@ -43,9 +42,13 @@ int main() {
     sf::RectangleShape spyBtn(sf::Vector2f(200, 50)); spyBtn.setPosition(50, 540); spyBtn.setFillColor(sf::Color(90, 90, 90));
     sf::Text spyText("Spy (Spy only)", font, 20); spyText.setPosition(70, 550); spyText.setFillColor(sf::Color::White);
 
+    sf::RectangleShape cancelBribeBtn(sf::Vector2f(200, 50)); cancelBribeBtn.setPosition(300, 540); cancelBribeBtn.setFillColor(sf::Color(180, 0, 0));
+    sf::Text cancelBribeText("Cancel Bribe", font, 20); cancelBribeText.setPosition(310, 550); cancelBribeText.setFillColor(sf::Color::White);
+
     std::vector<sf::RectangleShape> targetButtons;
     std::vector<sf::Text> targetTexts;
-    bool choosingTarget = false, choosingSanction = false, choosingSpy = false, gameOver = false, mustCoup = false;
+    bool choosingTarget = false, choosingSanction = false, choosingSpy = false, choosingCancelBribe = false;
+    bool gameOver = false, mustCoup = false;
     std::string winnerName = "";
 
     while (window.isOpen()) {
@@ -58,7 +61,7 @@ int main() {
             mustCoup = current->getCoins() >= 10;
 
             if (event.type == sf::Event::MouseButtonPressed) {
-                if (choosingTarget || choosingSanction || choosingSpy) {
+                if (choosingTarget || choosingSanction || choosingSpy || choosingCancelBribe) {
                     for (size_t i = 0; i < targetButtons.size(); ++i) {
                         if (targetButtons[i].getGlobalBounds().contains(mouse)) {
                             Player* target = game.getPlayer(targetTexts[i].getString());
@@ -72,12 +75,16 @@ int main() {
                                 } else if (choosingSpy) {
                                     current->spyOn(*target);
                                     resultText.setString(current->getName() + " spied on " + target->getName());
+                                } else if (choosingCancelBribe) {
+                                    current->judgeBribe(*target);
+                                    resultText.setString(current->getName() + " canceled bribe by " + target->getName());
                                 }
                                 resultText.setFillColor(sf::Color::Green);
                             } catch (const std::exception& e) {
-                                resultText.setString(e.what()); resultText.setFillColor(sf::Color::Red);
+                                resultText.setString(e.what());
+                                resultText.setFillColor(sf::Color::Red);
                             }
-                            choosingTarget = choosingSanction = choosingSpy = false;
+                            choosingTarget = choosingSanction = choosingSpy = choosingCancelBribe = false;
                             break;
                         }
                     }
@@ -112,6 +119,23 @@ int main() {
                             resultText.setString("Choose player to spy on");
                         } else {
                             resultText.setString("Only Spy can use this."); resultText.setFillColor(sf::Color::Red);
+                        }
+                    } else if (cancelBribeBtn.getGlobalBounds().contains(mouse)) {
+                        if (current->getRole() == Role::Judge) {
+                            choosingCancelBribe = true;
+                            targetButtons.clear(); targetTexts.clear();
+                            int y = 470;
+                            for (Player* p : players) {
+                                if (p->isAlive() && p != current && game.wasBribeUsedBy(p)) {
+                                    sf::RectangleShape btn(sf::Vector2f(200, 40)); btn.setPosition(300, y); btn.setFillColor(sf::Color(180, 0, 0));
+                                    sf::Text txt(p->getName(), font, 20); txt.setPosition(310, y + 5); txt.setFillColor(sf::Color::White);
+                                    targetButtons.push_back(btn); targetTexts.push_back(txt); y += 50;
+                                }
+                            }
+                            resultText.setString("Choose player to cancel their bribe");
+                        } else {
+                            resultText.setString("Only Judge can cancel bribes.");
+                            resultText.setFillColor(sf::Color::Red);
                         }
                     } else if (coupBtn.getGlobalBounds().contains(mouse)) {
                         if (current->getCoins() >= 7) {
@@ -167,10 +191,10 @@ int main() {
             window.draw(turnText);
             window.draw(resultText);
 
-            if (!mustCoup && !choosingTarget && !choosingSanction && !choosingSpy) {
+            if (!mustCoup && !choosingTarget && !choosingSanction && !choosingSpy && !choosingCancelBribe) {
                 window.draw(gatherBtn); window.draw(gatherText);
-                window.draw(taxBtn);    window.draw(taxText);
-                window.draw(bribeBtn);  window.draw(bribeText);
+                window.draw(taxBtn); window.draw(taxText);
+                window.draw(bribeBtn); window.draw(bribeText);
                 window.draw(sanctionBtn); window.draw(sanctionText);
                 window.draw(coupBtn); window.draw(coupText);
                 if (current->getRole() == Role::Baron) {
@@ -178,6 +202,9 @@ int main() {
                 }
                 if (current->getRole() == Role::Spy) {
                     window.draw(spyBtn); window.draw(spyText);
+                }
+                if (current->getRole() == Role::Judge) {
+                    window.draw(cancelBribeBtn); window.draw(cancelBribeText);
                 }
             }
 
