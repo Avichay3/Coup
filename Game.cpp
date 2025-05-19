@@ -22,6 +22,7 @@ Player* Game::currentPlayer() const {
     }
     return players[idx];
 }
+// check
 
 std::string Game::turn() const {
     return currentPlayer()->getName();
