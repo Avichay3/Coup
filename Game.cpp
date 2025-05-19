@@ -151,3 +151,19 @@ void Game::cancelBribe(Player* p) {
 void Game::addCoinsToBank(int amount) {
     bank += amount;
 }
+
+// מציין שהשחקן הזה היה יעד להפיכה – כדי שגנרל יוכל לחסום
+void Game::markCoupTarget(Player* target) {
+    recentCoupTargets[target] = true;
+}
+
+// בודק האם שחקן זה היה היעד להפיכה בתור האחרון
+bool Game::wasCoupTargeted(Player* target) const {
+    auto it = recentCoupTargets.find(target);
+    return it != recentCoupTargets.end() && it->second;
+}
+
+// מנקה את רשימת השחקנים שהיו יעד להפיכה – נקרא אחרי כל תור
+void Game::clearCoupMarks() {
+    recentCoupTargets.clear();
+}
