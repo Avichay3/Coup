@@ -2,8 +2,11 @@
 
 #include "Player.hpp"
 #include "Game.hpp"
-#include <stdexcept>
+
 #include <iostream>
+#include <stdexcept>
+using namespace std;
+
 
 Player::Player(const std::string& name, Role role, Game* game)
     : name(name), role(role), coins(0), alive(true), game(game), extraAction(false) {
@@ -16,30 +19,7 @@ Role Player::getRole() const { return role; }
 int Player::getCoins() const { return coins; }
 bool Player::isAlive() const { return alive; }
 
-void Player::gather() {
-    if (!alive) throw std::logic_error("Dead player cannot gather.");
-    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
-    if (game->isSanctioned(this)) throw std::logic_error("You are sanctioned and cannot gather.");
-    coins += 1;
-    std::cout << name << " gathered 1 coin." << std::endl;
-    endTurn();
-}
 
-void Player::tax() {
-    if (!alive) throw std::logic_error("Dead player cannot tax.");
-    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
-    if (game->isSanctioned(this)) {
-        if (role == Role::Baron) {
-            coins += 1;
-            std::cout << name << " is sanctioned (Baron), receives 1 coin compensation." << std::endl;
-            endTurn(); return;
-        }
-        throw std::logic_error("You are sanctioned and cannot tax.");
-    }
-    coins += (role == Role::Governor) ? 3 : 2;
-    std::cout << name << " taxed and got coins." << std::endl;
-    endTurn();
-}
 
 void Player::bribe() {
     if (!alive) throw std::logic_error("Dead player cannot bribe.");
@@ -112,7 +92,6 @@ void Player::preventCoup(Player& target) {
     endTurn();
 }
 
-void Player::addCoins(int amount) { coins += amount; }
 void Player::removeCoins(int amount) { if (coins < amount) throw std::logic_error("Not enough coins."); coins -= amount; }
 void Player::eliminate() { alive = false; std::cout << name << " has been eliminated." << std::endl; }
 
@@ -136,4 +115,88 @@ void Player::judgeBribe(Player& target) {
 
 void Player::clearExtraAction() {
     extraAction = false;
+}
+
+void Player::generalBlockCoup(Player& attacker) {
+    if (this->role != Role::General) throw std::logic_error("Only General can block coups.");
+    if (!game->canBlockCoup(this)) throw std::logic_error("No coup to block.");
+    if (coins < 5) throw std::logic_error("General needs 5 coins to block coup.");
+
+    coins -= 5;
+    attacker.addCoins(7);  // refund the attacker since coup failed
+    game->cancelCoup(this);
+
+    std::cout << name << " blocked the coup by " << attacker.getName() << " and paid 5 coins.\n";
+}
+
+void Player::merchantBonus() {
+    if (role != Role::Merchant) return;
+    if (coins >= 3) {
+        coins += 1;
+        std::cout << name << " (Merchant) gained 1 bonus coin for starting with 3+.\n";
+    }
+}
+
+// === Update gather() and tax() with merchantBonus() at start ===
+void Player::gather() {
+    if (!alive) throw std::logic_error("Dead player cannot gather.");
+    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
+    if (game->isSanctioned(this)) throw std::logic_error("You are sanctioned and cannot gather.");
+
+    merchantBonus();
+    coins += 1;
+    std::cout << name << " gathered 1 coin.\n";
+    endTurn();
+}
+
+void Player::tax() {
+    if (!alive) throw std::logic_error("Dead player cannot tax.");
+    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
+    if (game->isSanctioned(this)) throw std::logic_error("You are sanctioned and cannot tax.");
+
+    merchantBonus();
+    int amount = 2;
+    if (role == Role::Governor) amount = 3;
+    coins += amount;
+    std::cout << name << " taxed and got " << amount << " coins.\n";
+    endTurn();
+}
+
+void Player::arrest(Player& target) {
+    if (!alive || !target.isAlive()) throw logic_error("Both players must be alive.");
+    if (!game->isPlayerTurn(this)) throw logic_error("Not your turn.");
+    if (game->wasArrestedByMeLastTurn(this, &target)) throw logic_error("Cannot arrest same player twice in a row.");
+    if (target.getRole() == Role::Spy && game->isArrestBlocked(&target)) 
+        throw logic_error("You have been blocked from using arrest this turn.");
+
+    // General cancels arrest
+    if (target.getRole() == Role::General) {
+        cout << target.getName() << " is a General and negated the arrest.\n";
+        endTurn();
+        return;
+    }
+
+    // Merchant handles differently
+    if (target.getRole() == Role::Merchant) {
+        if (target.getCoins() < 2) throw logic_error("Merchant doesn't have enough to pay arrest penalty.");
+        target.removeCoins(2);
+        cout << target.getName() << " is a Merchant and paid 2 coins to bank (arrest).\n";
+        endTurn();
+        return;
+    }
+
+    // Normal arrest
+    if (target.getCoins() > 0) {
+        target.removeCoins(1);
+        addCoins(1);
+    }
+
+    game->markArrest(this, &target);
+    cout << getName() << " arrested " << target.getName() << " and took 1 coin.\n";
+    endTurn();
+}
+
+
+void Player::addCoins(int amount) {
+    coins += amount;
 }

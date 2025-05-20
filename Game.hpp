@@ -15,6 +15,8 @@ private:
     std::unordered_map<Player*, int> coupBlocks;   // 🎖️ General blocks coup
     int bank = 0; // קופה של המשחק
     std::unordered_map<Player*, bool> recentCoupTargets; 
+    std::unordered_map<Player*, Player*> attemptedCoup;
+    std::unordered_map<Player*, Player*> arrestLog;
 
 
 public:
@@ -49,4 +51,12 @@ public:
     bool wasCoupTargeted(Player* target) const;
     void clearCoupMarks();
 
+    void registerCoupAttempt(Player* attacker, Player* target);
+    bool canBlockCoup(Player* target);
+    void cancelCoup(Player* target);
+    void markArrest(Player *from, Player *target);
+
+    bool wasArrestedByMeLastTurn(Player* source, Player* target) const;
+
 };
+

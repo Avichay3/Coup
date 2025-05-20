@@ -62,6 +62,15 @@ int main() {
             mustCoup = current->getCoins() >= 10;
             sf::Vector2f mouse(sf::Mouse::getPosition(window));
 
+            // Give Merchant bonus if needed
+            int before = current->getCoins();
+            current->merchantBonus();
+            if (current->getCoins() > before) {
+                resultText.setString(current->getName() + " (Merchant) gained 1 bonus coin for starting with 3+.");
+                resultText.setFillColor(sf::Color::Green);
+            }
+
+
             if (mustCoup && !choosingTarget) {
                 choosingTarget = true;
                 targetButtons.clear(); targetTexts.clear();

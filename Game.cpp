@@ -14,7 +14,7 @@ void Game::addPlayer(Player* p) {
 
 Player* Game::currentPlayer() const {
     if (players.empty()) throw std::logic_error("No players in game.");
-    int count = 0;
+    size_t count = 0;
     int idx = currentTurnIndex;
     while (!players[idx]->isAlive()) {
         idx = (idx + 1) % players.size();
@@ -166,4 +166,25 @@ bool Game::wasCoupTargeted(Player* target) const {
 // מנקה את רשימת השחקנים שהיו יעד להפיכה – נקרא אחרי כל תור
 void Game::clearCoupMarks() {
     recentCoupTargets.clear();
+}
+
+void Game::registerCoupAttempt(Player* attacker, Player* target) {
+    attemptedCoup[target] = attacker;
+}
+
+bool Game::canBlockCoup(Player* target) {
+    return attemptedCoup.count(target) > 0;
+}
+
+void Game::cancelCoup(Player* target) {
+    attemptedCoup.erase(target);
+}
+
+void Game::markArrest(Player* from, Player* target) {
+    arrestLog[from] = target;
+}
+
+bool Game::wasArrestedByMeLastTurn(Player* source, Player* target) const {
+    auto it = arrestLog.find(source);
+    return it != arrestLog.end() && it->second == target;
 }

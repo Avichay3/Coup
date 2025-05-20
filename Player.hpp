@@ -21,8 +21,10 @@ public:
     int getCoins() const;
     bool isAlive() const;
 
+
     void gather();
     void tax();
+    void arrest(Player &target);
     void bribe();
     void coup(Player& target);
     void sanction(Player& target);
@@ -37,6 +39,12 @@ public:
 
     void judgeBribe(Player& target);  // ביטול שוחד
     void clearExtraAction();  // מאפשר ביטול bribe
+
+    void generalBlockCoup(Player& attacker);  // General blocks coup
+    void merchantBonus();                     // Merchant gains bonus if 3+ coins
+
+    
+
 
 
 };
