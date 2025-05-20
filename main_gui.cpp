@@ -13,7 +13,7 @@ int main() {
     players.push_back(new Player("Orel", Role::Governor, &game));
     players.push_back(new Player("Avi", Role::Spy, &game));
     players.push_back(new Player("Alon", Role::General, &game));
-    players.push_back(new Player("Avicii", Role::General, &game));
+    players.push_back(new Player("Avicii", Role::Judge, &game));
 
     sf::RenderWindow window(sf::VideoMode(1100, 650), "Coup Game - GUI");
     sf::Font font;
@@ -62,14 +62,12 @@ int main() {
             mustCoup = current->getCoins() >= 10;
             sf::Vector2f mouse(sf::Mouse::getPosition(window));
 
-            // Give Merchant bonus if needed
             int before = current->getCoins();
             current->merchantBonus();
             if (current->getCoins() > before) {
                 resultText.setString(current->getName() + " (Merchant) gained 1 bonus coin for starting with 3+.");
                 resultText.setFillColor(sf::Color::Green);
             }
-
 
             if (mustCoup && !choosingTarget) {
                 choosingTarget = true;
@@ -116,6 +114,40 @@ int main() {
                 } else if (bribeBtn.getGlobalBounds().contains(mouse)) {
                     try { current->bribe(); resultText.setString(current->getName() + " bribed."); resultText.setFillColor(sf::Color::Green); }
                     catch (const std::exception& e) { resultText.setString(e.what()); resultText.setFillColor(sf::Color::Red); }
+                } else if (sanctionBtn.getGlobalBounds().contains(mouse)) {
+                    if (current->getCoins() >= 3) {
+                        choosingSanction = true;
+                        targetButtons.clear(); targetTexts.clear();
+                        int y = 470;
+                        for (Player* p : players) {
+                            if (p->isAlive() && p != current) {
+                                sf::RectangleShape btn({200, 40}); btn.setPosition(550, y); btn.setFillColor(sf::Color(120, 0, 120));
+                                sf::Text txt(p->getName(), font, 20); txt.setPosition(560, y + 5); txt.setFillColor(sf::Color::White);
+                                targetButtons.push_back(btn); targetTexts.push_back(txt); y += 50;
+                            }
+                        }
+                        resultText.setString("Choose player to sanction");
+                    } else {
+                        resultText.setString("Need 3 coins to sanction.");
+                        resultText.setFillColor(sf::Color::Red);
+                    }
+                } else if (spyBtn.getGlobalBounds().contains(mouse)) {
+                    if (current->getRole() == Role::Spy) {
+                        choosingSpy = true;
+                        targetButtons.clear(); targetTexts.clear();
+                        int y = 470;
+                        for (Player* p : players) {
+                            if (p->isAlive() && p != current) {
+                                sf::RectangleShape btn({200, 40}); btn.setPosition(800, y); btn.setFillColor(sf::Color(80, 80, 80));
+                                sf::Text txt(p->getName(), font, 20); txt.setPosition(810, y + 5); txt.setFillColor(sf::Color::White);
+                                targetButtons.push_back(btn); targetTexts.push_back(txt); y += 50;
+                            }
+                        }
+                        resultText.setString("Choose player to spy on");
+                    } else {
+                        resultText.setString("Only Spy can use this.");
+                        resultText.setFillColor(sf::Color::Red);
+                    }
                 } else if (preventCoupBtn.getGlobalBounds().contains(mouse)) {
                     if (current->getRole() == Role::General) {
                         choosingPreventCoup = true;
