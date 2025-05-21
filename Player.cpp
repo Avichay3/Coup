@@ -24,7 +24,7 @@ bool Player::isAlive() const { return alive; }
 void Player::bribe() {
     if (!alive) throw std::logic_error("Dead player cannot bribe.");
     if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
-    if (coins < 4) throw std::logic_error("Not enough coins to bribe.");
+    if (coins < 4) throw std::logic_error("Not enough coins to bribe");
 
     coins -= 4;
     extraAction = true;
@@ -37,9 +37,9 @@ void Player::bribe() {
 
 
 void Player::sanction(Player& target) {
-    if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive.");
-    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
-    if (coins < 3) throw std::logic_error("Not enough coins to sanction.");
+    if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive");
+    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn");
+    if (coins < 3) throw std::logic_error("Not enough coins to sanction");
     if (target.getRole() == Role::Judge) {
         game->addCoinsToBank(1);  // קנס נוסף
     }
@@ -50,14 +50,15 @@ void Player::sanction(Player& target) {
 }
 
 void Player::coup(Player& target) {
-    if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive.");
-    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
+    if (this == &target) throw std::logic_error("Cannot coup yourself");
+    if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive");
+    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn");
     if (game->isCoupBlocked(&target)) {
         coins -= 7;
         std::cout << name << " tried to coup " << target.getName() << " but it was blocked! Coins lost." << std::endl;
         endTurn(); return;
     }
-    if (coins < 7) throw std::logic_error("Not enough coins to perform a coup.");
+    if (coins < 7) throw std::logic_error("Not enough coins to perform a coup");
     coins -= 7;
     game->eliminate(&target);
     std::cout << name << " performed a coup on " << target.getName() << "." << std::endl;
@@ -65,17 +66,17 @@ void Player::coup(Player& target) {
 }
 
 void Player::invest() {
-    if (!alive) throw std::logic_error("Dead player cannot invest.");
-    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
-    if (role != Role::Baron) throw std::logic_error("Only a Baron can invest.");
-    if (coins < 3) throw std::logic_error("Not enough coins to invest.");
+    if (!alive) throw std::logic_error("Dead player cannot invest");
+    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn");
+    if (role != Role::Baron) throw std::logic_error("Only a Baron can invest");
+    if (coins < 3) throw std::logic_error("Not enough coins to invest");
     coins -= 3; coins += 6;
-    std::cout << name << " invested and gained 6 coins." << std::endl;
+    std::cout << name << " invested and gained 6 coins" << std::endl;
     endTurn();
 }
 
 void Player::spyOn(Player& target) {
-    if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive.");
+    if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive");
     if (role != Role::Spy) throw std::logic_error("Only Spy can spy.");
     std::cout << name << " spies on " << target.getName() << ": " << target.getCoins() << " coins." << std::endl;
     game->blockArrest(&target);
@@ -165,7 +166,10 @@ void Player::tax() {
 void Player::arrest(Player& target) {
     if (!alive || !target.isAlive()) throw logic_error("Both players must be alive.");
     if (!game->isPlayerTurn(this)) throw logic_error("Not your turn.");
-    if (game->wasArrestedByMeLastTurn(this, &target)) throw logic_error("Cannot arrest same player twice in a row.");
+    if (game->wasArrestedByMeLastTurn(this, &target))
+        throw std::logic_error("Cannot arrest same player twice in a row.");
+    game->markArrest(this, &target);  // MOVE THIS LINE UP!
+
     if (target.getRole() == Role::Spy && game->isArrestBlocked(&target)) 
         throw logic_error("You have been blocked from using arrest this turn.");
 

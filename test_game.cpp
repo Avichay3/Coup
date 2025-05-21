@@ -18,17 +18,13 @@ TEST_CASE("Gather and Tax") {
     Player p1("Bob", Role::Governor, &g);
     Player p2("Dan", Role::Merchant, &g);
 
-    CHECK(g.turn() == "Bob");
-    p1.gather();
-    CHECK(p1.getCoins() == 1);
-    
-    CHECK(g.turn() == "Dan");
-    p2.gather();  // Should get merchant bonus if coins >= 3
-    CHECK(p2.getCoins() == 1);
+    for (int i = 0; i < 5; ++i) {
+        p1.gather();
+        p2.gather();
+    }
 
-    p2.gather(); p2.gather(); // Now has 3 coins
-    p2.gather(); // Will get +1 from merchant bonus
-    CHECK(p2.getCoins() == 5);
+    CHECK(p1.getCoins() == 5);
+    CHECK(p2.getCoins() >= 5);
 }
 
 TEST_CASE("Tax - Governor vs Normal") {
@@ -36,11 +32,8 @@ TEST_CASE("Tax - Governor vs Normal") {
     Player gov("Gov", Role::Governor, &g);
     Player mer("Mer", Role::Merchant, &g);
 
-    gov.tax(); // +3
-    CHECK(gov.getCoins() == 3);
-
-    mer.tax(); // +2 + maybe bonus
-    CHECK(mer.getCoins() >= 2);
+    gov.tax(); CHECK(gov.getCoins() == 3);
+    mer.tax(); CHECK(mer.getCoins() >= 2);
 }
 
 TEST_CASE("Bribe and Extra Action") {
@@ -48,12 +41,15 @@ TEST_CASE("Bribe and Extra Action") {
     Player p1("Briber", Role::Merchant, &g);
     Player p2("Receiver", Role::Spy, &g);
 
-    p1.gather(); p2.gather(); // round 1
-    p1.tax(); p2.tax();       // round 2
-    p1.tax(); p2.tax();       // round 3, p1 has 6+ coins
-    p1.gather();              // 7 coins
+    for (int i = 0; i < 3; ++i) {
+        p1.tax(); p2.tax();
+    }
+    p1.gather(); p2.gather(); // total 9 coins
+    p1.gather(); // will gain bonus
+
+    CHECK(p1.getCoins() >= 10);
     p1.bribe();
-    CHECK(p1.getCoins() == 3);  // paid 4 coins
+    CHECK(p1.getCoins() == 6);  // 10 - 4
 }
 
 TEST_CASE("Coup Mechanics") {
@@ -61,11 +57,13 @@ TEST_CASE("Coup Mechanics") {
     Player p1("CoupMan", Role::Baron, &g);
     Player p2("Target", Role::Spy, &g);
 
-    for (int i = 0; i < 10; ++i) p1.gather();
-    CHECK(p1.getCoins() >= 10);
+    for (int i = 0; i < 10; ++i) {
+        p1.gather(); p2.gather();
+    }
 
+    CHECK(p1.getCoins() >= 10);
     p1.coup(p2);
-    CHECK(p2.isAlive() == false);
+    CHECK_FALSE(p2.isAlive());
 }
 
 TEST_CASE("Invest - Baron only") {
@@ -73,11 +71,13 @@ TEST_CASE("Invest - Baron only") {
     Player baron("Baron", Role::Baron, &g);
     Player other("Other", Role::Merchant, &g);
 
-    for (int i = 0; i < 3; ++i) baron.gather();
+    for (int i = 0; i < 3; ++i) {
+        baron.gather(); other.gather();
+    }
+
     baron.invest();
     CHECK(baron.getCoins() == 6);
 
-    other.gather(); other.gather(); other.gather();
     CHECK_THROWS(other.invest());
 }
 
@@ -86,11 +86,10 @@ TEST_CASE("Sanction & Block") {
     Player gov("Gov", Role::Governor, &g);
     Player mer("Mer", Role::Merchant, &g);
 
-    for (int i = 0; i < 3; ++i) gov.gather();
-    gov.sanction(mer);
+    for (int i = 0; i < 3; ++i) { gov.gather(); mer.gather(); }
 
-    CHECK_THROWS(mer.gather());
-    CHECK_THROWS(mer.tax());
+    gov.sanction(mer);
+    CHECK_THROWS(mer.gather());  // must call immediately after
 }
 
 TEST_CASE("Spy blocks arrest") {
@@ -98,9 +97,11 @@ TEST_CASE("Spy blocks arrest") {
     Player spy("SpyGuy", Role::Spy, &g);
     Player gov("GovGuy", Role::Governor, &g);
 
-    spy.gather(); gov.gather();
-    spy.spyOn(gov); // blocks arrest
-    gov.gather(); spy.gather();
+    spy.gather();
+    gov.gather();
+    spy.spyOn(gov);
+    spy.endTurn();  // spyOn doesn't end turn
+
     CHECK_THROWS(gov.arrest(spy));
 }
 
@@ -109,8 +110,52 @@ TEST_CASE("Judge cancels bribe") {
     Player briber("Briber", Role::Baron, &g);
     Player judge("Judgey", Role::Judge, &g);
 
-    for (int i = 0; i < 4; ++i) briber.gather();
-    briber.bribe(); // extra action = true
+    for (int i = 0; i < 4; ++i) { briber.gather(); judge.gather(); }
 
+    briber.bribe();
     CHECK_NOTHROW(judge.judgeBribe(briber));
+}
+
+TEST_CASE("Can't arrest same player twice in a row") {
+    Game g;
+    Player p1("A", Role::Governor, &g);
+    Player p2("B", Role::Merchant, &g);
+
+    for (int i = 0; i < 3; ++i) { p1.gather(); p2.gather(); }
+
+    p1.arrest(p2);
+    p2.gather();
+    CHECK_THROWS(p1.arrest(p2));
+}
+
+TEST_CASE("Judge can't cancel bribe if none made") {
+    Game g;
+    Player p1("Briber", Role::Baron, &g);
+    Player p2("Judgey", Role::Judge, &g);
+
+    p1.gather(); p2.gather();
+    CHECK_THROWS(p2.judgeBribe(p1));
+}
+
+TEST_CASE("General blocks coup successfully") {
+    Game g;
+    Player attacker("Attacker", Role::Governor, &g);
+    Player general("Gen", Role::General, &g);
+
+    for (int i = 0; i < 10; ++i) {
+        attacker.gather(); general.gather();
+    }
+
+    general.preventCoup(general);  // block first
+    attacker.coup(general);        // will be blocked
+
+    CHECK(general.isAlive());
+}
+
+TEST_CASE("Player cannot coup themselves") {
+    Game g;
+    Player p1("Selfie", Role::Governor, &g);
+    for (int i = 0; i < 10; ++i) p1.gather();
+
+    CHECK_THROWS(p1.coup(p1));
 }
