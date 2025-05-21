@@ -90,3 +90,31 @@ TEST_CASE("Spy Action") {
     spy.spyOn(target);
     CHECK(target.getCoins() == 0);
 }
+
+TEST_CASE("Game Winner") {
+    Game g;
+    Player p1("Alice", Role::Governor, &g);
+    Player p2("Bob", Role::Merchant, &g);
+
+    // Alice eliminates Bob
+    for (int i = 0; i < 7; ++i) { p1.gather(); p2.gather(); }
+    p1.coup(p2);
+
+    CHECK(g.winner() == "Alice");
+}
+
+TEST_CASE("Attempting illegal actions") {
+    Game g;
+    Player p1("Alice", Role::Governor, &g);
+    Player p2("Bob", Role::Merchant, &g);
+
+    // Not enough coins
+    CHECK_THROWS(p1.coup(p2));
+
+    // Acting out of turn
+    CHECK_THROWS(p2.gather()); // it's Alice's turn
+
+    // Trying self-coup
+    for (int i = 0; i < 7; ++i) { p1.gather(); p2.gather(); }
+    CHECK_THROWS(p1.coup(p1));
+}
