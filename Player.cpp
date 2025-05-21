@@ -7,7 +7,6 @@
 #include <stdexcept>
 using namespace std;
 
-
 Player::Player(const std::string& name, Role role, Game* game)
     : name(name), role(role), coins(0), alive(true), game(game), extraAction(false) {
     if (!game) throw std::invalid_argument("Player must be assigned to a game.");
@@ -19,8 +18,6 @@ Role Player::getRole() const { return role; }
 int Player::getCoins() const { return coins; }
 bool Player::isAlive() const { return alive; }
 
-
-
 void Player::bribe() {
     if (!alive) throw std::logic_error("Dead player cannot bribe.");
     if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
@@ -28,20 +25,16 @@ void Player::bribe() {
 
     coins -= 4;
     extraAction = true;
-    game->markBribe(this);  // חשוב!
-
+    game->markBribe(this);
     std::cout << name << " paid 4 coins to bribe and earned an extra action.\n";
 }
-
-
-
 
 void Player::sanction(Player& target) {
     if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive");
     if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn");
     if (coins < 3) throw std::logic_error("Not enough coins to sanction");
     if (target.getRole() == Role::Judge) {
-        game->addCoinsToBank(1);  // קנס נוסף
+        game->addCoinsToBank(1);
     }
     coins -= 3;
     game->applySanction(&target);
@@ -53,12 +46,17 @@ void Player::coup(Player& target) {
     if (this == &target) throw std::logic_error("Cannot coup yourself");
     if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive");
     if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn");
+    if (coins < 7) throw std::logic_error("Not enough coins to perform a coup");
+
+    game->registerCoupAttempt(this, &target);
     if (game->isCoupBlocked(&target)) {
         coins -= 7;
         std::cout << name << " tried to coup " << target.getName() << " but it was blocked! Coins lost." << std::endl;
-        endTurn(); return;
+        game->cancelCoup(&target);
+        endTurn();
+        return;
     }
-    if (coins < 7) throw std::logic_error("Not enough coins to perform a coup");
+
     coins -= 7;
     game->eliminate(&target);
     std::cout << name << " performed a coup on " << target.getName() << "." << std::endl;
@@ -80,26 +78,40 @@ void Player::spyOn(Player& target) {
     if (role != Role::Spy) throw std::logic_error("Only Spy can spy.");
     std::cout << name << " spies on " << target.getName() << ": " << target.getCoins() << " coins." << std::endl;
     game->blockArrest(&target);
-    // Not ending turn
+    endTurn();
 }
 
 void Player::preventCoup(Player& target) {
     if (!alive || !target.isAlive()) throw std::logic_error("Both players must be alive.");
     if (role != Role::General) throw std::logic_error("Only General can prevent coup.");
     if (coins < 5) throw std::logic_error("Not enough coins to block coup.");
+    if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn");
+
     coins -= 5;
     game->blockCoup(&target);
     std::cout << name << " (General) blocked coup against " << target.getName() << "." << std::endl;
     endTurn();
 }
 
-void Player::removeCoins(int amount) { if (coins < amount) throw std::logic_error("Not enough coins."); coins -= amount; }
-void Player::eliminate() { alive = false; std::cout << name << " has been eliminated." << std::endl; }
+void Player::removeCoins(int amount) {
+    if (coins < amount) throw std::logic_error("Not enough coins.");
+    coins -= amount;
+}
+
+void Player::eliminate() {
+    alive = false;
+    std::cout << name << " has been eliminated." << std::endl;
+}
 
 void Player::endTurn() {
-    if (extraAction) { extraAction = false; return; }
+    if (extraAction) {
+        extraAction = false;
+        return;
+    }
+    game->clearCoupMarks();
     game->nextTurn();
 }
+
 
 void Player::judgeBribe(Player& target) {
     if (!alive || !target.isAlive())
@@ -109,7 +121,6 @@ void Player::judgeBribe(Player& target) {
     if (!game->wasBribeUsedBy(&target))
         throw std::logic_error("No bribe to cancel.");
 
-    // ביטול השוחד
     game->cancelBribe(&target);
     std::cout << name << " canceled bribe by " << target.getName() << std::endl;
 }
@@ -124,7 +135,7 @@ void Player::generalBlockCoup(Player& attacker) {
     if (coins < 5) throw std::logic_error("General needs 5 coins to block coup.");
 
     coins -= 5;
-    attacker.addCoins(7);  // refund the attacker since coup failed
+    attacker.addCoins(7);
     game->cancelCoup(this);
 
     std::cout << name << " blocked the coup by " << attacker.getName() << " and paid 5 coins.\n";
@@ -138,7 +149,6 @@ void Player::merchantBonus() {
     }
 }
 
-// === Update gather() and tax() with merchantBonus() at start ===
 void Player::gather() {
     if (!alive) throw std::logic_error("Dead player cannot gather.");
     if (!game->isPlayerTurn(this)) throw std::logic_error("Not your turn.");
@@ -168,19 +178,18 @@ void Player::arrest(Player& target) {
     if (!game->isPlayerTurn(this)) throw logic_error("Not your turn.");
     if (game->wasArrestedByMeLastTurn(this, &target))
         throw std::logic_error("Cannot arrest same player twice in a row.");
-    game->markArrest(this, &target);  // MOVE THIS LINE UP!
 
     if (target.getRole() == Role::Spy && game->isArrestBlocked(&target)) 
         throw logic_error("You have been blocked from using arrest this turn.");
 
-    // General cancels arrest
+    game->markArrest(this, &target);
+
     if (target.getRole() == Role::General) {
         cout << target.getName() << " is a General and negated the arrest.\n";
         endTurn();
         return;
     }
 
-    // Merchant handles differently
     if (target.getRole() == Role::Merchant) {
         if (target.getCoins() < 2) throw logic_error("Merchant doesn't have enough to pay arrest penalty.");
         target.removeCoins(2);
@@ -189,17 +198,14 @@ void Player::arrest(Player& target) {
         return;
     }
 
-    // Normal arrest
     if (target.getCoins() > 0) {
         target.removeCoins(1);
         addCoins(1);
     }
 
-    game->markArrest(this, &target);
     cout << getName() << " arrested " << target.getName() << " and took 1 coin.\n";
     endTurn();
 }
-
 
 void Player::addCoins(int amount) {
     coins += amount;
